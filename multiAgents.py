@@ -41,7 +41,7 @@ class MultiAgentSearchAgent(Agent):
 class AIAgent(MultiAgentSearchAgent):
     def alphabeta(self, agent, depth, gameState, alpha, beta):
         if gameState.isLose() or gameState.isWin() or depth == self.depth:
-            return self.evaluationFunction(gameState)
+            return evaluationFunction(gameState)
         if agent == 0:  # maximize for pacman
             value = float("-inf")
             for action in getLegalActionsNoStop(agent, gameState):
@@ -101,6 +101,46 @@ class AIAgent(MultiAgentSearchAgent):
         chosenIndex = random.choice(max_indices)
         return possibleActions[chosenIndex]
 
+def evaluationFunction(currentGameState):
+
+    # Setup information to be used as arguments in evaluation function
+    pacman_position = currentGameState.getPacmanPosition()
+    ghost_positions = currentGameState.getGhostPositions()
+
+    food_list = currentGameState.getFood().asList()
+    food_count = len(food_list)
+    capsule_count = len(currentGameState.getCapsules())
+    closest_food = 1
+
+    game_score = currentGameState.getScore()
+
+    # Find distances from pacman to all food
+    food_distances = [manhattanDistance(pacman_position, food_position) for food_position in food_list]
+
+    # Set value for closest food if there is still food left
+    if food_count > 0:
+        closest_food = min(food_distances)
+
+    # Find distances from pacman to ghost(s)
+    for ghost_position in ghost_positions:
+        ghost_distance = manhattanDistance(pacman_position, ghost_position)
+
+        # If ghost is too close to pacman, prioritize escaping instead of eating the closest food
+        # by resetting the value for closest distance to food
+        if ghost_distance < 2:
+            closest_food = float("inf")
+
+    features = [1.0 / closest_food,
+                game_score,
+                food_count,
+                capsule_count]
+    weights = [10,
+               200,
+               -100,
+               -10]
+
+    # Linear combination of features
+    return sum([feature * weight for feature, weight in zip(features, weights)])
 
 def getLegalActionsNoStop(index, gameState):
         possibleActions = gameState.getLegalActions(index)
