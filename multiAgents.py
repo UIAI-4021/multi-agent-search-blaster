@@ -11,7 +11,6 @@
 # Student side autograding was added by Brad Miller, Nick Hay, and
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
-import numpy as np
 from util import manhattanDistance
 from game import Directions
 import random, util
@@ -48,7 +47,7 @@ class AIAgent(MultiAgentSearchAgent):
                 value = max(value,
                             self.alphabeta(1, depth, gameState.generateSuccessor(agent, action), alpha, beta))
                 alpha = max(alpha, value)
-                if beta <= alpha:  # alpha-beta pruning
+                if beta < alpha:  # alpha-beta pruning
                     break
             return value
         else:  # minimize for ghosts
@@ -60,10 +59,9 @@ class AIAgent(MultiAgentSearchAgent):
             for action in getLegalActionsNoStop(agent, gameState):
                 value = float("inf")
                 value = min(value,
-                            self.alphabeta(nextAgent, depth, gameState.generateSuccessor(agent, action), alpha,
-                                           beta))
+                            self.alphabeta(nextAgent, depth, gameState.generateSuccessor(agent, action), alpha, beta))
                 beta = min(beta, value)
-                if beta <= alpha:  # alpha-beta pruning
+                if beta < alpha:  # alpha-beta pruning
                     break
             return value
 
@@ -102,45 +100,28 @@ class AIAgent(MultiAgentSearchAgent):
         return possibleActions[chosenIndex]
 
 def evaluationFunction(currentGameState):
-
     # Setup information to be used as arguments in evaluation function
-    pacman_position = currentGameState.getPacmanPosition()
-    ghost_positions = currentGameState.getGhostPositions()
+    newPos = currentGameState.getPacmanPosition()
+    newFood = currentGameState.getFood()
+    newGhostStates = currentGameState.getGhostStates()
 
-    food_list = currentGameState.getFood().asList()
-    food_count = len(food_list)
-    capsule_count = len(currentGameState.getCapsules())
-    closest_food = 1
+    score = currentGameState.getScore()
 
-    game_score = currentGameState.getScore()
+    # Add points based on distance to foods
+    foodList = newFood.asList()
+    foodDistances = [manhattanDistance(newPos, food) for food in foodList]
+    if foodDistances:
+        closestFoodDistance = min(foodDistances)
+        score += 1.0 / closestFoodDistance
 
-    # Find distances from pacman to all food
-    food_distances = [manhattanDistance(pacman_position, food_position) for food_position in food_list]
+    # Deduct points based on distance to ghosts
+    for ghostState in newGhostStates:
+        ghostPos = ghostState.getPosition()
+        distanceToGhost = manhattanDistance(newPos, ghostPos)
+        if distanceToGhost < 2:
+            score -= 100
 
-    # Set value for closest food if there is still food left
-    if food_count > 0:
-        closest_food = min(food_distances)
-
-    # Find distances from pacman to ghost(s)
-    for ghost_position in ghost_positions:
-        ghost_distance = manhattanDistance(pacman_position, ghost_position)
-
-        # If ghost is too close to pacman, prioritize escaping instead of eating the closest food
-        # by resetting the value for closest distance to food
-        if ghost_distance < 2:
-            closest_food = float("inf")
-
-    features = [1.0 / closest_food,
-                game_score,
-                food_count,
-                capsule_count]
-    weights = [10,
-               200,
-               -100,
-               -10]
-
-    # Linear combination of features
-    return sum([feature * weight for feature, weight in zip(features, weights)])
+    return score
 
 def getLegalActionsNoStop(index, gameState):
         possibleActions = gameState.getLegalActions(index)
